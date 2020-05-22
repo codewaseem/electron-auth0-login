@@ -5,7 +5,7 @@ import request from 'request-promise-native';
 import url from 'url';
 
 const requirePeer = codependency.register(module);
-const keytar = requirePeer('keytar', {optional: true});
+const keytar = requirePeer('keytar', { optional: true });
 
 import { getPKCEChallengePair, PKCEPair } from './cryptoUtils';
 
@@ -16,6 +16,7 @@ export interface Config {
     auth0Domain: string,
     auth0Scopes: string, // What permissions do we want?
     useRefreshTokens?: boolean,
+    redirectEndpoint?: string,
     windowConfig?: object
 }
 
@@ -55,6 +56,10 @@ export default class ElectronAuth0Login {
             }
         }
 
+        if (!this.config.redirectEndpoint) {
+            this.config.redirectEndpoint = "/mobile"
+        }
+
         if (config.useRefreshTokens && !config.applicationName) {
             console.warn('electron-auth0-login: cannot use refresh tokens without an application name');
         }
@@ -64,8 +69,42 @@ export default class ElectronAuth0Login {
         }
     }
 
-    public async logout() {
+    private async openLogoutWindow(federated: boolean = false) {
+        let logoutURL = `https://${this.config.auth0Domain}/v2/logout`;
+        if (federated) {
+            logoutURL += `?federated`;
+        }
+        return new Promise(resolve => {
+            const logoutWindow = new BrowserWindow({
+                show: false,
+            });
+
+            logoutWindow.loadURL(logoutURL);
+
+            logoutWindow.on('ready-to-show', async () => {
+                logoutWindow.close();
+                resolve();
+            });
+        });
+    }
+
+    public async getUserInfo(token: string) {
+
+        return request(`https://${this.config.auth0Domain}/userinfo`, {
+            method: 'POST',
+            json: true,
+            auth: {
+                bearer: token
+            }
+        }).promise();
+
+    }
+
+    public async logout(federated: boolean) {
         this.tokenProperties = null;
+
+        await this.openLogoutWindow(federated);
+
         if (this.useRefreshToken) {
             await keytar.deletePassword(this.config.applicationName, 'refresh-token');
         }
@@ -125,31 +164,31 @@ export default class ElectronAuth0Login {
         return this.tokenProperties.access_token;
     }
 
-    private async getAuthCode(pkcePair: PKCEPair): Promise<string> {       
+    private async getAuthCode(pkcePair: PKCEPair): Promise<string> {
         return new Promise<string>((resolve, reject) => {
             const authCodeUrl = `https://${this.config.auth0Domain}/authorize?` + qs.stringify({
-                audience: this.config.auth0Audience,                
+                audience: this.config.auth0Audience,
                 scope: this.config.auth0Scopes,
                 response_type: 'code',
                 client_id: this.config.auth0ClientId,
                 code_challenge: pkcePair.challenge,
                 code_challenge_method: 'S256',
-                redirect_uri: `https://${this.config.auth0Domain}/mobile`
+                redirect_uri: `https://${this.config.auth0Domain}${this.config.redirectEndpoint}`
             });
 
             const authWindow = new BrowserWindow(this.windowConfig);
-    
+
             authWindow.webContents.on('did-navigate' as any, (event: any, href: string) => {
                 const location = url.parse(href);
-                if (location.pathname == '/mobile') {
-                    const query = qs.parse(location.search || '', {ignoreQueryPrefix: true});
+                if (location.pathname == this.config.redirectEndpoint) {
+                    const query = qs.parse(location.search || '', { ignoreQueryPrefix: true });
                     resolve(query.code);
                     authWindow.destroy();
                 }
             });
-    
+
             authWindow.on('close', reject);
-    
+
             authWindow.loadURL(authCodeUrl);
         });
     }
@@ -163,7 +202,7 @@ export default class ElectronAuth0Login {
                 client_id: this.config.auth0ClientId,
                 code_verifier: pkcePair.verifier,
                 code: authCode,
-                redirect_uri: `https://${this.config.auth0Domain}/mobile`
+                redirect_uri: `https://${this.config.auth0Domain}${this.config.redirectEndpoint}`
             }
         }).promise().then(toTokenMeta);
     }

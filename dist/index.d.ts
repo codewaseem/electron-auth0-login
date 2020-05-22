@@ -5,6 +5,7 @@ export interface Config {
     auth0Domain: string;
     auth0Scopes: string;
     useRefreshTokens?: boolean;
+    redirectEndpoint?: string;
     windowConfig?: object;
 }
 export default class ElectronAuth0Login {
@@ -13,7 +14,9 @@ export default class ElectronAuth0Login {
     private useRefreshToken;
     private windowConfig;
     constructor(config: Config);
-    logout(): Promise<void>;
+    private openLogoutWindow;
+    getUserInfo(token: string): Promise<any>;
+    logout(federated: boolean): Promise<void>;
     getToken(): Promise<string>;
     private sendRefreshToken;
     private login;

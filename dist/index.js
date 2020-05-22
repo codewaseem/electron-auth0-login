@@ -34,6 +34,9 @@ class ElectronAuth0Login {
         if (config.windowConfig) {
             this.windowConfig = Object.assign({}, this.windowConfig, config.windowConfig);
         }
+        if (!this.config.redirectEndpoint) {
+            this.config.redirectEndpoint = "/mobile";
+        }
         if (config.useRefreshTokens && !config.applicationName) {
             console.warn('electron-auth0-login: cannot use refresh tokens without an application name');
         }
@@ -41,9 +44,39 @@ class ElectronAuth0Login {
             console.warn('electron-auth0-login: cannot use refresh tokens without node-keytar installed');
         }
     }
-    logout() {
+    openLogoutWindow(federated = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let logoutURL = `https://${this.config.auth0Domain}/v2/logout`;
+            if (federated) {
+                logoutURL += `?federated`;
+            }
+            return new Promise(resolve => {
+                const logoutWindow = new electron_1.BrowserWindow({
+                    show: false,
+                });
+                logoutWindow.loadURL(logoutURL);
+                logoutWindow.on('ready-to-show', () => __awaiter(this, void 0, void 0, function* () {
+                    logoutWindow.close();
+                    resolve();
+                }));
+            });
+        });
+    }
+    getUserInfo(token) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return request_promise_native_1.default(`https://${this.config.auth0Domain}/userinfo`, {
+                method: 'POST',
+                json: true,
+                auth: {
+                    bearer: token
+                }
+            }).promise();
+        });
+    }
+    logout(federated) {
         return __awaiter(this, void 0, void 0, function* () {
             this.tokenProperties = null;
+            yield this.openLogoutWindow(federated);
             if (this.useRefreshToken) {
                 yield keytar.deletePassword(this.config.applicationName, 'refresh-token');
             }
@@ -112,12 +145,12 @@ class ElectronAuth0Login {
                     client_id: this.config.auth0ClientId,
                     code_challenge: pkcePair.challenge,
                     code_challenge_method: 'S256',
-                    redirect_uri: `https://${this.config.auth0Domain}/mobile`
+                    redirect_uri: `https://${this.config.auth0Domain}${this.config.redirectEndpoint}`
                 });
                 const authWindow = new electron_1.BrowserWindow(this.windowConfig);
                 authWindow.webContents.on('did-navigate', (event, href) => {
                     const location = url_1.default.parse(href);
-                    if (location.pathname == '/mobile') {
+                    if (location.pathname == this.config.redirectEndpoint) {
                         const query = qs_1.default.parse(location.search || '', { ignoreQueryPrefix: true });
                         resolve(query.code);
                         authWindow.destroy();
@@ -138,7 +171,7 @@ class ElectronAuth0Login {
                     client_id: this.config.auth0ClientId,
                     code_verifier: pkcePair.verifier,
                     code: authCode,
-                    redirect_uri: `https://${this.config.auth0Domain}/mobile`
+                    redirect_uri: `https://${this.config.auth0Domain}${this.config.redirectEndpoint}`
                 }
             }).promise().then(toTokenMeta);
         });

@@ -1,7 +1,7 @@
 {
-  "name": "electron-auth0-login",
+  "name": "@codewaseem/electron-auth0-login",
   "version": "1.3.0",
-  "description": "Provides Auth0 authentication services for your Electron.js application",
+  "description": "A fork from Jimmy Breck-McKye - Provides Auth0 authentication services for your Electron.js application",
   "main": "dist/index.js",
   "scripts": {
     "dist": "tsc"
@@ -15,23 +15,23 @@
   "homepage": "https://github.com/jbreckmckye/electron-auth0-login#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jbreckmckye/electron-auth0-login.git"
+    "url": "https://github.com/codewaseem/electron-auth0-login.git"
   },
   "bugs": {
     "url": "https://github.com/jbreckmckye/electron-auth0-login/issues"
   },
   "devDependencies": {
     "@types/codependency": "0.1.3",
-    "@types/keytar": "4.0.1",
+    "@types/keytar": "^4.4.2",
     "@types/qs": "6.5.1",
     "@types/request": "2.47.1",
     "@types/request-promise-native": "1.0.15",
     "electron": "3.0.3",
-    "keytar": "4.3.0",
+    "keytar": "^5.6.0",
     "typescript": "3.1.2"
   },
   "dependencies": {
-    "codependency": "2.1.0",
+    "codependency": "^2.1.0",
     "qs": "6.5.2"
   },
   "peerDependencies": {
